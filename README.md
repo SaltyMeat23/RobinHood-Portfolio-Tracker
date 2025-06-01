@@ -1,6 +1,6 @@
 # Robinhood Portfolio Tracker
 
-A comprehensive Python application that automatically tracks your Robinhood investment portfolio and updates Google Sheets with real-time data including stock positions, options positions, trading activity, and account balances.
+A comprehensive Python application that automatically tracks your Robinhood investment portfolio and updates Google Sheets with real-time data including stock positions, options positions, trading activity, and account balances. Get the Google Sheets template for this project here https://docs.google.com/spreadsheets/d/1p7d5IQvx6HOy743MbOxrXWiub-0oaMNpHq32wiSR1_8/edit?usp=sharing . Rename the file "TD Tracker - RH" before continuing on. 
 
 ## 🚀 Quick Setup Summary
 
