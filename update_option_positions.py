@@ -72,7 +72,7 @@ def get_simplified_account_data(account_ids):
             account_info = r.load_account_profile(account_number=account_id)
             account_data[account_id] = {
                 'cash_for_options': float(account_info.get('cash_held_for_options_collateral', 0)),
-                'type': 'IRA' if account_id == '519517908' else 'Standard'
+                'type': 'IRA' if account_id == os.getenv('IRA_ACCOUNT') else 'Standard'
             }
         except Exception:
             account_data[account_id] = {'cash_for_options': 0, 'type': 'Unknown'}
@@ -293,8 +293,11 @@ def main():
     load_dotenv()
     username = os.getenv("ROBINHOOD_USER")
     password = os.getenv("ROBINHOOD_PASS")
-    main_account_id = os.getenv("MAIN_ACCOUNT") or "5QU52702"
-    ira_account_id = os.getenv("traditional_Ira") or "519517908"
+    main_account_id = os.getenv("MAIN_ACCOUNT")
+    ira_account_id = os.getenv("traditional_Ira")
+
+    if not main_account_id or not ira_account_id:
+        raise ValueError("MAIN_ACCOUNT and IRA_ACCOUNT environment variables must be set")
     
     try:
         r.login(username, password, expiresIn=86400, store_session=True)

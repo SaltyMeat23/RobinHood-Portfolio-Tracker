@@ -4,16 +4,28 @@ import robin_stocks.robinhood as r
 from datetime import datetime
 import pytz
 from rate_limit_handler import sleep_with_jitter
+import os
+from dotenv import load_dotenv
+
+def get_account_mapping():
+    """Get account mapping from environment variables."""
+    load_dotenv()
+    mapping = {}
+    
+    if os.getenv('MAIN_ACCOUNT'):
+        mapping[os.getenv('MAIN_ACCOUNT')] = 'Standard'
+    if os.getenv('IRA_ACCOUNT'): 
+        mapping[os.getenv('IRA_ACCOUNT')] = 'IRA'
+    if os.getenv('THIRD_ACCOUNT'):
+        mapping[os.getenv('THIRD_ACCOUNT')] = 'Third'
+    
+    return mapping
 
 def get_last_50_trades(account_ids=None):
     """Get the last 50 filled trades across all account types."""
     all_trades = []
     
-    account_mapping = {
-        '5QU52702': 'Standard',
-        '519517908': 'IRA', 
-        '410351639': 'Third'
-    }
+    account_mapping = get_account_mapping()
     
     try:
         for account_id in account_ids or []:

@@ -577,7 +577,7 @@ def main():
     except Exception as e:
         print(f"❌ Error processing stock positions: {e}")
     
-        print("📊 Processing options orders...")
+    print("📊 Processing options orders...")
     try:
         process_options_orders(spreadsheet, main_account_id, ira_account_id)
         print("✅ Options orders processed")
