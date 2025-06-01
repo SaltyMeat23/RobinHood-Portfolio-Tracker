@@ -169,7 +169,6 @@ robinhood-portfolio-tracker/
 ├── positions.py               # Stock positions processing
 ├── options_orders.py          # Options orders and tracking
 ├── trading_activity.py        # Recent trading activity
-├── earnings_calculator.py     # Realized gains calculator
 ├── rate_limit_handler.py      # API rate limiting
 ├── multi_account_handler.py   # Multi-account utilities
 ├── utils.py                   # General utilities
