@@ -6,7 +6,7 @@ A comprehensive Python application that automatically tracks your Robinhood inve
 
 1. **Clone repository**
 2. **Install dependencies:** `pip install -r requirements.txt`
-3. **Create Google Sheets document named:** `"TD Tracker - RH"`
+3. **Rename Google Sheets document (from link above) named:** `"TD Tracker - RH"`
 4. **Set up Google Cloud service account and share spreadsheet**
 5. **Configure environment variables:** `cp .env.template .env` and edit
 6. **Test setup:** `python test_google_sheets.py`
