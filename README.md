@@ -9,7 +9,7 @@ A comprehensive Python application that automatically tracks your Robinhood inve
 3. **Rename Google Sheets document (from link above) named:** `"TD Tracker - RH"`
 4. **Set up Google Cloud service account and share spreadsheet**
 5. **Configure environment variables:** `cp .env.template .env` and edit
-6. **Test setup:** `python test_google_sheets.py`
+6. **Test setup:** `python google_sheets_test.py`
 7. **Run application:** `python main.py`
 
 ---
