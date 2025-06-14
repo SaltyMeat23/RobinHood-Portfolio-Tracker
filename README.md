@@ -131,7 +131,7 @@ A comprehensive Python application that automatically tracks your Robinhood inve
 python test_env_setup.py
 
 # Test Google Sheets connection specifically
-python test_google_sheets.py
+python google_sheets_test.py
 
 # Find your Robinhood account IDs (if needed)
 python find_account_ids.py
