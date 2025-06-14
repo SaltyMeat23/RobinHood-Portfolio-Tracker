@@ -64,7 +64,7 @@ A comprehensive Python application that automatically tracks your Robinhood inve
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/robinhood-portfolio-tracker.git
+   git clone https://github.com/SaltyMeat23/robinhood-portfolio-tracker.git
    cd robinhood-portfolio-tracker
    ```
 
