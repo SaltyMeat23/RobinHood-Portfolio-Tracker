@@ -91,7 +91,7 @@ def test_env_setup():
         'robin_stocks',
         'gspread',
         'oauth2client',
-        'python-dotenv',
+        'dotenv',
         'pytz'
     ]
     
