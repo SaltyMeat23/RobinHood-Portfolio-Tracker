@@ -151,20 +151,29 @@ def simplified_strategy_detection(position, account_data, stock_collateral):
 
 def process_option_positions_efficiently(main_account_id, ira_account_id):
     """Process option positions with optimized API usage."""
-    main_options = get_open_option_positions(account_number=main_account_id)
-    ira_options = get_open_option_positions(account_number=ira_account_id)
-    
     combined_positions = []
     
-    for option in main_options:
-        option['account_type'] = 'Main'
-        option['account_number'] = main_account_id
-        combined_positions.append(option)
+    # Get main account positions
+    if main_account_id:
+        try:
+            main_options = get_open_option_positions(account_number=main_account_id)
+            for option in main_options:
+                option['account_type'] = 'Main'
+                option['account_number'] = main_account_id
+                combined_positions.append(option)
+        except Exception:
+            pass
     
-    for option in ira_options:
-        option['account_type'] = 'IRA'
-        option['account_number'] = ira_account_id
-        combined_positions.append(option)
+    # Only get IRA positions if IRA account ID is provided and different from main
+    if ira_account_id and ira_account_id != main_account_id:
+        try:
+            ira_options = get_open_option_positions(account_number=ira_account_id)
+            for option in ira_options:
+                option['account_type'] = 'IRA'
+                option['account_number'] = ira_account_id
+                combined_positions.append(option)
+        except Exception:
+            pass
     
     if not combined_positions:
         return []
@@ -174,9 +183,20 @@ def process_option_positions_efficiently(main_account_id, ira_account_id):
     if not option_ids:
         return []
     
+    # Remove duplicates based on option_id to prevent duplicate entries
+    seen_option_ids = set()
+    unique_positions = []
+    for position in combined_positions:
+        option_id = position.get('option_id')
+        if option_id and option_id not in seen_option_ids:
+            seen_option_ids.add(option_id)
+            unique_positions.append(position)
+    
+    combined_positions = unique_positions
+    
     option_data, market_data = get_option_data_batch(option_ids)
-    account_data = get_simplified_account_data([main_account_id, ira_account_id])
-    stock_collateral = get_stock_positions_for_cc_detection([main_account_id, ira_account_id])
+    account_data = get_simplified_account_data([acc for acc in [main_account_id, ira_account_id] if acc])
+    stock_collateral = get_stock_positions_for_cc_detection([acc for acc in [main_account_id, ira_account_id] if acc])
     total_portfolio_value = get_total_portfolio_value()
     
     enriched_positions = []
@@ -294,10 +314,14 @@ def main():
     username = os.getenv("ROBINHOOD_USER")
     password = os.getenv("ROBINHOOD_PASS")
     main_account_id = os.getenv("MAIN_ACCOUNT")
-    ira_account_id = os.getenv("traditional_Ira")
+    ira_account_id = os.getenv("IRA_ACCOUNT")  # Changed from hardcoded value
 
-    if not main_account_id or not ira_account_id:
-        raise ValueError("MAIN_ACCOUNT and IRA_ACCOUNT environment variables must be set")
+    if not main_account_id:
+        raise ValueError("MAIN_ACCOUNT environment variable must be set")
+    
+    # Don't require IRA account - it's optional
+    if not ira_account_id:
+        print("⚠️ No IRA_ACCOUNT found, processing main account only")
     
     try:
         r.login(username, password, expiresIn=86400, store_session=True)
@@ -325,6 +349,3 @@ def main():
             r.logout()
         except:
             pass
-
-if __name__ == "__main__":
-    main()
