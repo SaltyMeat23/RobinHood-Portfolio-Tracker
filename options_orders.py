@@ -213,7 +213,7 @@ def calculate_weekly_premium_stats(orders, weeks_back=8):
     today = datetime.now(pytz.UTC)
     cutoff_date = today - timedelta(weeks=weeks_back)
     
-    account_mapping = {'5QU52702': 'Standard', '519517908': 'IRA', '410351639': 'Third'}
+    account_mapping = get_account_mapping()
     
     for order in orders:
         try:
