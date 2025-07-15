@@ -6,162 +6,79 @@ import robin_stocks.robinhood as r
 from positions import process_all_positions
 from options_orders import process_options_orders
 from rate_limit_handler import retry_on_rate_limit, sleep_with_jitter
+from option_utils import (get_option_data_batch, get_simplified_account_data, 
+                         get_stock_positions_for_cc_detection, simplified_strategy_detection,
+                         get_total_portfolio_value, get_account_type_mapping)
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 
-def get_option_data_batch(option_ids):
-    """Get option instrument and market data in batch."""
-    option_data = {}
-    market_data = {}
-    
-    for option_id in option_ids:
-        try:
-            instrument = r.get_option_instrument_data_by_id(option_id)
-            if isinstance(instrument, list) and instrument:
-                instrument = instrument[0]
-            option_data[option_id] = instrument or {}
-            
-            market = r.get_option_market_data_by_id(option_id)
-            if isinstance(market, list) and market:
-                market = market[0]
-            market_data[option_id] = market or {}
-            
-            time.sleep(0.3)
-            
-        except Exception:
-            option_data[option_id] = {}
-            market_data[option_id] = {}
-    
-    return option_data, market_data
 
-def get_simplified_account_data(account_ids):
-    """Get essential account data for strategy detection."""
-    account_data = {}
-    
-    for account_id in account_ids:
-        try:
-            account_info = r.load_account_profile(account_number=account_id)
-            account_data[account_id] = {
-                'cash_for_options': float(account_info.get('cash_held_for_options_collateral', 0)),
-                'type': 'IRA' if account_id == '519517908' else 'Standard'
-            }
-        except Exception:
-            account_data[account_id] = {'cash_for_options': 0, 'type': 'Unknown'}
-    
-    return account_data
 
-def get_stock_positions_for_cc_detection(account_ids):
-    """Get stock positions for covered call detection."""
-    stock_collateral = {}
-    
-    for account_id in account_ids:
-        try:
-            positions = r.get_open_stock_positions(account_number=account_id)
-            
-            for position in positions:
-                try:
-                    instrument_url = position.get('instrument')
-                    if not instrument_url:
-                        continue
-                        
-                    instrument_data = r.get_instrument_by_url(instrument_url)
-                    symbol = instrument_data.get('symbol', '')
-                    
-                    if symbol:
-                        shares_total = float(position.get('quantity', 0))
-                        shares_collateral = float(position.get('shares_held_for_options_collateral', 0))
-                        
-                        if symbol not in stock_collateral:
-                            stock_collateral[symbol] = {}
-                        
-                        stock_collateral[symbol][account_id] = {
-                            'total_shares': shares_total,
-                            'collateral_shares': shares_collateral
-                        }
-                        
-                    time.sleep(0.2)
-                    
-                except Exception:
-                    continue
-                    
-        except Exception:
-            continue
-    
-    return stock_collateral
 
-def simplified_strategy_detection(position, account_data, stock_collateral):
-    """Detect option strategy type."""
-    symbol = position.get('symbol', '')
-    option_type = position.get('option_type', '').upper()
-    strike_price = float(position.get('strike_price', 0))
-    account_id = position.get('account_number', '')
-    quantity = float(position.get('quantity', 0))
-    
-    strategy = f"{option_type} Position"
-    
-    if option_type == 'CALL' and symbol in stock_collateral:
-        account_stocks = stock_collateral[symbol].get(account_id, {})
-        
-        collateral_shares = account_stocks.get('collateral_shares', 0)
-        if collateral_shares >= (quantity * 100):
-            strategy = "Covered Call (CC)"
-        else:
-            total_shares = account_stocks.get('total_shares', 0)
-            if total_shares >= (quantity * 100):
-                strategy = "Covered Call (CC) - Holdings"
-    
-    elif option_type == 'PUT':
-        account_info = account_data.get(account_id, {})
-        cash_for_options = account_info.get('cash_for_options', 0)
-        required_cash = strike_price * quantity * 100
-        
-        if cash_for_options >= required_cash * 0.9:
-            strategy = "Cash-Secured Put (CSP)"
-    
-    return strategy
 
-def get_total_portfolio_value():
-    """Get total portfolio value."""
-    try:
-        phoenix_data = r.account.load_phoenix_account()
-        if phoenix_data and 'total_equity' in phoenix_data:
-            return float(phoenix_data.get('total_equity', 0))
-    except Exception:
-        pass
-    
-    return 100000.0
 
-def process_integrated_option_positions(sheets_client, spreadsheet, main_account_id, ira_account_id):
+def process_integrated_option_positions(sheets_client, spreadsheet, main_account_id, ira_account_id, config):
     """Process option positions."""
     try:
-        main_options = r.get_open_option_positions(account_number=main_account_id)
-        ira_options = r.get_open_option_positions(account_number=ira_account_id)
-        
         combined_positions = []
         
-        for option in main_options:
-            option['account_type'] = 'Main'
-            option['account_number'] = main_account_id
-            combined_positions.append(option)
+        # Get main account positions
+        if main_account_id:
+            try:
+                main_options = r.get_open_option_positions(account_number=main_account_id)
+                for option in main_options:
+                    option['account_type'] = 'Main'
+                    option['account_number'] = main_account_id
+                    combined_positions.append(option)
+                print(f"Found {len(main_options)} main account options")
+            except Exception as e:
+                print(f"Error getting main account options: {e}")
         
-        for option in ira_options:
-            option['account_type'] = 'IRA'
-            option['account_number'] = ira_account_id
-            combined_positions.append(option)
+        # Only get IRA positions if IRA account ID is provided, valid, and different from main
+        if ira_account_id and ira_account_id != main_account_id and ira_account_id.strip():
+            try:
+                ira_options = r.get_open_option_positions(account_number=ira_account_id)
+                for option in ira_options:
+                    option['account_type'] = 'IRA'
+                    option['account_number'] = ira_account_id
+                    combined_positions.append(option)
+                print(f"Found {len(ira_options)} IRA account options")
+            except Exception as e:
+                print(f"Error getting IRA account options: {e}")
+        else:
+            print("Skipping IRA account - not provided or same as main account")
         
         if not combined_positions:
-            options_sheet = sheets_client.get_or_create_worksheet(spreadsheet, "Option Positions")
+            options_sheet = sheets_client.get_or_create_worksheet(spreadsheet, config["google_sheets"]["option_positions_sheet"])
             sheets_client.update_cells(options_sheet, [["No option positions found"]], "A1")
             return
+        
+        # Remove duplicates based on option_id
+        seen_option_ids = set()
+        unique_positions = []
+        for position in combined_positions:
+            option_id = position.get('option_id')
+            if option_id and option_id not in seen_option_ids:
+                seen_option_ids.add(option_id)
+                unique_positions.append(position)
+            elif option_id:
+                print(f"Duplicate option_id found and removed: {option_id}")
+        
+        combined_positions = unique_positions
+        print(f"Processing {len(combined_positions)} unique option positions")
         
         option_ids = [pos.get('option_id') for pos in combined_positions if pos.get('option_id')]
         
         if not option_ids:
             return
         
+        # Filter account_ids to only include valid ones
+        valid_account_ids = [acc_id for acc_id in [main_account_id, ira_account_id] 
+                           if acc_id and acc_id.strip()]
+        
         option_data, market_data = get_option_data_batch(option_ids)
-        account_data = get_simplified_account_data([main_account_id, ira_account_id])
-        stock_collateral = get_stock_positions_for_cc_detection([main_account_id, ira_account_id])
+        account_data = get_simplified_account_data(valid_account_ids, ira_account_id)
+        stock_collateral = get_stock_positions_for_cc_detection(valid_account_ids)
         total_portfolio_value = get_total_portfolio_value()
         
         enriched_positions = []
@@ -209,12 +126,13 @@ def process_integrated_option_positions(sheets_client, spreadsheet, main_account
             
             enriched_positions.append(position)
         
-        update_option_positions_sheet(sheets_client, spreadsheet, enriched_positions, total_portfolio_value)
+        print(f"Successfully enriched {len(enriched_positions)} option positions")
+        update_option_positions_sheet(sheets_client, spreadsheet, enriched_positions, total_portfolio_value, config)
         
     except Exception as e:
         print(f"Error processing option positions: {e}")
 
-def update_option_positions_sheet(sheets_client, spreadsheet, enriched_positions, total_portfolio_value):
+def update_option_positions_sheet(sheets_client, spreadsheet, enriched_positions, total_portfolio_value, config):
     """Update sheet with option positions."""
     enriched_positions.sort(key=lambda x: x.get('allocation_percentage', 0), reverse=True)
     
@@ -254,7 +172,7 @@ def update_option_positions_sheet(sheets_client, spreadsheet, enriched_positions
         ]
         rows.append(option_row)
     
-    options_sheet = sheets_client.get_or_create_worksheet(spreadsheet, "Option Positions")
+    options_sheet = sheets_client.get_or_create_worksheet(spreadsheet, config["google_sheets"]["option_positions_sheet"])
     
     sheets_client.clear_worksheet(options_sheet)
     sleep_with_jitter(1.0)
@@ -472,10 +390,10 @@ def get_account_balances(main_account_id=None, ira_account_id=None, third_accoun
         
     return balances
 
-def process_stock_positions(spreadsheet, main_account_id, ira_account_id):
+def process_stock_positions(spreadsheet, main_account_id, ira_account_id, config):
     """Process stock positions and update the relevant sheet."""
     try:
-        all_stock_positions_sheet = spreadsheet.worksheet("All Stock Positions")
+        all_stock_positions_sheet = spreadsheet.worksheet(config["google_sheets"]["all_stock_positions_sheet"])
         all_stock_positions_sheet.clear()
         
         main_positions = r.get_open_stock_positions(account_number=main_account_id)
@@ -561,7 +479,7 @@ def main():
         monthly_earnings = None
         
         balance_sheet = sheets_client.get_or_create_worksheet(
-            spreadsheet, "Account Balances", rows=50, cols=20
+            spreadsheet, config["google_sheets"]["account_balances_sheet"], rows=50, cols=20
         )
         
         update_account_balance_sheet(balance_sheet, account_balances, monthly_earnings)
@@ -572,21 +490,21 @@ def main():
 
     print("📈 Processing stock positions...")
     try:
-        total_portfolio_value = process_stock_positions(spreadsheet, main_account_id, ira_account_id)
+        total_portfolio_value = process_stock_positions(spreadsheet, main_account_id, ira_account_id, config)
         print("✅ Stock positions processed")
     except Exception as e:
         print(f"❌ Error processing stock positions: {e}")
     
     print("📊 Processing options orders...")
     try:
-        process_options_orders(spreadsheet, main_account_id, ira_account_id)
+        process_options_orders(spreadsheet, main_account_id, ira_account_id, config, third_account_id)
         print("✅ Options orders processed")
     except Exception as e:
         print(f"❌ Error processing options orders: {e}")
 
     print("📊 Processing option positions...")
     try:
-        process_integrated_option_positions(sheets_client, spreadsheet, main_account_id, ira_account_id)
+        process_integrated_option_positions(sheets_client, spreadsheet, main_account_id, ira_account_id, config)
         print("✅ Option positions processed")
     except Exception as e:
         print(f"❌ Error processing option positions: {e}")

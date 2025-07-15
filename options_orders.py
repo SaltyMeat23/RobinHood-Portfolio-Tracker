@@ -7,17 +7,16 @@ from rate_limit_handler import retry_on_rate_limit, sleep_with_jitter
 import os
 from dotenv import load_dotenv
 
-def get_account_mapping():
-    """Get account mapping from environment variables."""
-    load_dotenv()
+def get_account_mapping(main_account_id, ira_account_id, third_account_id):
+    """Get account mapping from provided account IDs."""
     mapping = {}
     
-    if os.getenv('MAIN_ACCOUNT'):
-        mapping[os.getenv('MAIN_ACCOUNT')] = 'Standard'
-    if os.getenv('IRA_ACCOUNT'): 
-        mapping[os.getenv('IRA_ACCOUNT')] = 'IRA'
-    if os.getenv('THIRD_ACCOUNT'):
-        mapping[os.getenv('THIRD_ACCOUNT')] = 'Third'
+    if main_account_id:
+        mapping[main_account_id] = 'Standard'
+    if ira_account_id: 
+        mapping[ira_account_id] = 'IRA'
+    if third_account_id:
+        mapping[third_account_id] = 'Third'
     
     return mapping
 
@@ -62,7 +61,10 @@ def get_all_ira_option_orders(account_number, max_pages=10):
 def get_all_options_orders(account_number=None):
     """Retrieve all options orders."""
     try:
-        if account_number == '519517908':
+        # Use specialized IRA endpoint for IRA account
+        load_dotenv()
+        ira_account = os.getenv('IRA_ACCOUNT')
+        if account_number and account_number == ira_account:
             orders = get_all_ira_option_orders(account_number)
             
             if orders and account_number:
@@ -128,11 +130,11 @@ def extract_quantity(order):
     
     return quantity
 
-def enrich_option_orders(orders):
+def enrich_option_orders(orders, main_account_id, ira_account_id, third_account_id):
     """Enhance orders with additional information."""
     enriched_orders = []
     
-    account_mapping = get_account_mapping()
+    account_mapping = get_account_mapping(main_account_id, ira_account_id, third_account_id)
     
     for order in orders:
         try:
@@ -205,7 +207,7 @@ def enrich_option_orders(orders):
     
     return enriched_orders
 
-def calculate_weekly_premium_stats(orders, weeks_back=8):
+def calculate_weekly_premium_stats(orders, weeks_back=8, main_account_id=None, ira_account_id=None, third_account_id=None):
     """Calculate weekly premium statistics."""
     weekly_stats = {}
     account_stats = {}
@@ -213,7 +215,7 @@ def calculate_weekly_premium_stats(orders, weeks_back=8):
     today = datetime.now(pytz.UTC)
     cutoff_date = today - timedelta(weeks=weeks_back)
     
-    account_mapping = {'5QU52702': 'Standard', '519517908': 'IRA', '410351639': 'Third'}
+    account_mapping = get_account_mapping(main_account_id, ira_account_id, third_account_id)
     
     for order in orders:
         try:
@@ -310,7 +312,7 @@ def create_fixed_weekly_table(account_type, account_stats, start_row, weeks_to_s
     return table_data, start_row + len(table_data) + 2
 
 @retry_on_rate_limit
-def update_options_orders_sheet(sheet, orders):
+def update_options_orders_sheet(sheet, orders, main_account_id, ira_account_id, third_account_id, config):
     """Update sheet with options orders and fixed account tables."""
     if not orders:
         sheet.update_cell(1, 1, "No options orders found")
@@ -319,11 +321,11 @@ def update_options_orders_sheet(sheet, orders):
     sheet.clear()
     sleep_with_jitter(3.0)
     
-    enriched_orders = enrich_option_orders(orders)
+    enriched_orders = enrich_option_orders(orders, main_account_id, ira_account_id, third_account_id)
     filtered_orders = [order for order in enriched_orders if order.get('state', '').lower() != 'cancelled']
     sorted_orders = sorted(filtered_orders, key=lambda x: x.get('created_at', ''), reverse=True)
     
-    weekly_stats, account_stats = calculate_weekly_premium_stats(enriched_orders)
+    weekly_stats, account_stats = calculate_weekly_premium_stats(enriched_orders, 8, main_account_id, ira_account_id, third_account_id)
     
     headers = ["Date", "Account", "Symbol", "Strategy", "Direction", 
                "Option Types", "Strike Prices", "Expiration", "Quantity", "Premium", "State"]
@@ -389,7 +391,7 @@ def update_options_orders_sheet(sheet, orders):
     except Exception:
         pass
 
-def process_options_orders(spreadsheet, main_account_id=None, ira_account_id=None):
+def process_options_orders(spreadsheet, main_account_id=None, ira_account_id=None, config=None, third_account_id=None):
     """Main processing function."""
     
     try:
@@ -407,13 +409,14 @@ def process_options_orders(spreadsheet, main_account_id=None, ira_account_id=Non
         if not all_orders:
             return []
         
+        options_sheet_name = config["google_sheets"]["options_orders_sheet"] if config else "Options Orders"
         try:
-            options_orders_sheet = spreadsheet.worksheet("Options Orders")
+            options_orders_sheet = spreadsheet.worksheet(options_sheet_name)
             options_orders_sheet.clear()
         except:
-            options_orders_sheet = spreadsheet.add_worksheet(title="Options Orders", rows=1000, cols=20)
+            options_orders_sheet = spreadsheet.add_worksheet(title=options_sheet_name, rows=1000, cols=20)
         
-        update_options_orders_sheet(options_orders_sheet, all_orders)
+        update_options_orders_sheet(options_orders_sheet, all_orders, main_account_id, ira_account_id, third_account_id, config)
         
         return all_orders
         

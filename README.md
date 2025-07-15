@@ -2,8 +2,14 @@
 
 A comprehensive Python application that automatically tracks your Robinhood investment portfolio and updates Google Sheets with real-time data including stock positions, options positions, trading activity, and account balances. Get the Google Sheets template for this project here https://docs.google.com/spreadsheets/d/1p7d5IQvx6HOy743MbOxrXWiub-0oaMNpHq32wiSR1_8/edit?usp=sharing . Rename the file "TD Tracker - RH" before continuing on. 
 
-## 🚀 Quick Setup Summary
+## 🚀 Easy Setup - Two Options
 
+### Option 1: Download Executable (Recommended for non-developers)
+1. **Download the latest release** from the [Releases page](https://github.com/SaltyMeat23/RobinHood-Portfolio-Tracker/releases)
+2. **Extract the zip file** and follow instructions in `SETUP.md`
+3. **Configure your credentials** and run `RobinhoodTracker.exe`
+
+### Option 2: Run from Source (For developers)
 1. **Clone repository**
 2. **Install dependencies:** `pip install -r requirements.txt`
 3. **Create Google Sheets document named:** `"TD Tracker - RH"`
@@ -11,6 +17,27 @@ A comprehensive Python application that automatically tracks your Robinhood inve
 5. **Configure environment variables:** `cp .env.template .env` and edit
 6. **Test setup:** `python test_google_sheets.py`
 7. **Run application:** `python main.py`
+
+## 🔨 Building Your Own Executable
+
+If you want to build the executable yourself:
+
+```bash
+# Install dependencies
+pip install -r requirements.txt
+
+# Build executable (Windows)
+python build_executable.py
+# or
+build.bat
+
+# Build executable (Linux/Mac)
+python3 build_executable.py
+# or
+chmod +x build.sh && ./build.sh
+```
+
+The executable and release files will be created in the `release/` folder.
 
 ---
 

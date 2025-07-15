@@ -67,3 +67,7 @@ logs/
 # Google Sheets cache
 token.json
 sheets_token.json
+
+# PyInstaller build files
+*.spec
+release/

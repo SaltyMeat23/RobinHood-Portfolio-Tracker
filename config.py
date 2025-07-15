@@ -32,9 +32,13 @@ def load_config():
             "third_account_id": os.getenv("THIRD_ACCOUNT")
         },
         "google_sheets": {
-            "credentials_file": "credentials.json",
+            "credentials_file": os.getenv("CREDENTIALS_FILE", "credentials.json"),
             "spreadsheet_name": os.getenv("SPREADSHEET_NAME"),
-            "positions_sheet": "Sheet 1"
+            "positions_sheet": os.getenv("POSITIONS_SHEET", "Sheet 1"),
+            "option_positions_sheet": os.getenv("OPTION_POSITIONS_SHEET", "Option Positions"),
+            "options_orders_sheet": os.getenv("OPTIONS_ORDERS_SHEET", "Options Orders"),
+            "account_balances_sheet": os.getenv("ACCOUNT_BALANCES_SHEET", "Account Balances"),
+            "all_stock_positions_sheet": os.getenv("ALL_STOCK_POSITIONS_SHEET", "All Stock Positions")
         }
     }
     
