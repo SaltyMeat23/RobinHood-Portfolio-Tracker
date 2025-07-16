@@ -11,7 +11,9 @@
       "Bash(copy README.md release\\)",
       "Bash(git add:*)",
       "Bash(git push:*)",
-      "Bash(git remote get-url:*)"
+      "Bash(git remote get-url:*)",
+      "Bash(git commit:*)",
+      "Bash(git --version)"
     ],
     "deny": []
   }
