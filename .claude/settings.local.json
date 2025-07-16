@@ -9,7 +9,9 @@
       "Bash(copy dist\\RobinhoodTracker.exe release\\)",
       "Bash(copy credentials.json.template release\\)",
       "Bash(copy README.md release\\)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git push:*)",
+      "Bash(git remote get-url:*)"
     ],
     "deny": []
   }
